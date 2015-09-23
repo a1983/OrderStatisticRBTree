@@ -1,6 +1,8 @@
 #ifndef STATIC_RB_TREE
 #define STATIC_RB_TREE
 
+#include <iterator>
+
 struct RBNode {
 	RBNode* p;
 	RBNode* l;
@@ -23,13 +25,17 @@ RBNode* nextNode( RBNode* node );
 RBNode* prevNode( RBNode* node );
 RBNode* lowestNode( RBNode* node );
 
-struct RbTreeData {
+class RbTreeData {
+
+    template< class K, class V >
+    friend class RbTree;
+
 	RbTreeData();
 
 	void rotateLeft(RBNode* n);
 	void rotateRight(RBNode* n);
 	void rebalance(RBNode* n);
-	void deleteNodeAndRebalance(RBNode* n);
+    RBNode *removeNodeAndRebalance(RBNode* n);
 
 	RBNode* getByStatistic( int index );
 	int getStatistic( RBNode* node );
@@ -41,25 +47,29 @@ struct RbTreeData {
 
 template< class K, class V >
 class RbTree : RbTreeData {
+
+    struct Node : RBNode {
+        Node( const K& key, const V& val )
+            : RBNode{ RBNode::null, RBNode::null, RBNode::null }
+            , key{ key }, val{ val } { }
+        K key;
+        V val;
+    };
+
+    static int blackHeight( RBNode* n );
+    static RBNode* findNode( Node* find, const K& key );
+
 public:
 	typedef K KeyType;
-	typedef V ValueType;
-
-	struct Node : RBNode {
-		Node( K key, V val )
-			: RBNode{ RBNode::null, RBNode::null, RBNode::null }
-			, key{ key }, val{ val } { }
-		K key;
-		V val;
-	};
+    typedef V ValueType;
 
 	class iterator
 	{
 		Node* i;
 
 	public:
-//		typedef std::bidirectional_iterator_tag iterator_category;
-//		typedef std::size_t difference_type;
+        typedef std::bidirectional_iterator_tag iterator_category;
+        typedef std::size_t difference_type;
 		typedef V  value_type;
 		typedef V* pointer;
 		typedef V& reference;
@@ -95,11 +105,13 @@ public:
 
 	inline int size() const { return statistic_size(); }
 
+    void clear();
+
 	bool valid() const;
 };
 
 template< class K, class V >
-typename RbTree<K,V>::iterator RbTree<K,V>::insert(K key, V val)
+typename RbTree< K, V >::iterator RbTree< K, V >::insert(K key, V val)
 {
 	Node* node = new Node{ key, val };
 
@@ -136,14 +148,14 @@ typename RbTree<K,V>::iterator RbTree<K,V>::insert(K key, V val)
 }
 
 template< class K, class V >
-RBNode* findNode( typename RbTree<K,V>::Node* find, K key )
+RBNode* RbTree< K, V >::findNode( typename RbTree< K, V >::Node* find, const K& key )
 {
 	while( find != RBNode::null ) {
 		if( key < find->key ) {
-			find = static_cast<typename RbTree<K,V>::Node*>( find->l );
+            find = static_cast<typename RbTree< K, V >::Node*>( find->l );
 		}
 		else if( key > find->key ) {
-			find = static_cast<typename RbTree<K,V>::Node*>( find->r );
+            find = static_cast<typename RbTree< K, V >::Node*>( find->r );
 		}
 		else
 			return find;
@@ -153,26 +165,47 @@ RBNode* findNode( typename RbTree<K,V>::Node* find, K key )
 }
 
 template< class K, class V >
-inline typename RbTree<K,V>::iterator RbTree<K,V>::find( K key )
+inline typename RbTree< K, V >::iterator RbTree< K, V >::find( K key )
 {
-	return iterator{ findNode<K,V>( static_cast<Node*>( root_ ), key ) };
+    return iterator{ findNode( static_cast<Node*>( root_ ), key ) };
 }
 
 template< class K, class V >
-bool RbTree<K,V>::remove(K key)
+bool RbTree< K, V >::remove(K key)
 {
-	Node* find = static_cast<Node*>( findNode<K,V>( static_cast<Node*>( root_ ), key ) );
+    Node* find = static_cast<Node*>( findNode( static_cast<Node*>( root_ ), key ) );
 	if( find == RBNode::null )
 		return false;
 
-	deleteNodeAndRebalance( find );
-	return true;
+    delete static_cast<Node*>( removeNodeAndRebalance( find ) );
+
+    return true;
 }
 
 template< class K, class V >
-inline typename RbTree<K,V>::iterator RbTree<K,V>::getNth( int index )
+inline typename RbTree< K, V >::iterator RbTree< K, V >::getNth( int index )
 {
-	return iterator{ static_cast< RbTree<K,V>::Node* >( getByStatistic( index ) ) };
+    return iterator{ static_cast< RbTree< K, V >::Node* >( getByStatistic( index ) ) };
+}
+
+template< class NodeType >
+void deleteNodeRecursively( NodeType* node ) {
+    if( node->l != RBNode::null )
+        deleteNodeRecursively( static_cast<NodeType*>( node->l ) );
+
+    if( node->r != RBNode::null )
+        deleteNodeRecursively( static_cast<NodeType*>( node->r ) );
+
+    delete node;
+}
+
+template< class K, class V >
+void RbTree< K, V >::clear()
+{
+    if( root_ != RBNode::null )
+        deleteNodeRecursively( static_cast< Node* >( root_ ) );
+
+    root_ = Node::null;
 }
 
 #if CHECK_VALID == 0
@@ -180,53 +213,29 @@ inline typename RbTree<K,V>::iterator RbTree<K,V>::getNth( int index )
 #include <stack>
 
 template< class K, class V >
-int leftBlackHeight( typename RbTree<K,V>::Node* n );
-
-template< class K, class V >
-int rightBlackHeight( typename RbTree<K,V>::Node* n );
-
-template< class K, class V >
-int leftBlackHeight( RBNode* n ) {
+int RbTree< K, V >::blackHeight( RBNode* n ) {
 	assert( n != RBNode::null );
 
-	RBNode* l = n->l;
-	if( l == RBNode::null )
-		return 1;
+    typename RbTree< K, V >::Node* l = static_cast<typename RbTree< K, V >::Node*>( n->l );
+    typename RbTree< K, V >::Node* r = static_cast<typename RbTree< K, V >::Node*>( n->r );
+    int leftHeight = 0;
+    int rightHeight = 0;
+    if( l != RBNode::null ) {
+        leftHeight += blackHeight( l );
+        assert( l->key <= ( static_cast<typename RbTree< K, V >::Node*>( n )->key ) );
+    }
 
-	assert( ( static_cast<typename RbTree<K,V>::Node*>( l )->key )
-			<= ( static_cast<typename RbTree<K,V>::Node*>( n )->key ) );
+    if( r != RBNode::null ) {
+        rightHeight += blackHeight( r );
+        assert( r->key >= ( static_cast<typename RbTree< K, V >::Node*>( n )->key ) );
+    }
 
-	int leftHeight = leftBlackHeight<K,V>( l );
-	int rightHeight = rightBlackHeight<K,V>( l );
 	assert( leftHeight == rightHeight );
-	int h = leftHeight;
-	if( l->c == RBNode::Black )
-		return h + 1;
-	return h;
+    return n->c == RBNode::Black ? leftHeight + 1 : leftHeight;
 }
 
 template< class K, class V >
-int rightBlackHeight( RBNode* n ) {
-	assert( n != RBNode::null );
-
-	RBNode* r = n->r;
-	if( r == RBNode::null )
-		return 1;
-
-	assert( ( static_cast<typename RbTree<K,V>::Node*>( r )->key )
-			>= ( static_cast<typename RbTree<K,V>::Node*>( n )->key ) );
-
-	int leftHeight = leftBlackHeight<K,V>( r );
-	int rightHeight = rightBlackHeight<K,V>( r );
-	assert( leftHeight == rightHeight );
-	int h = leftHeight;
-	if( r->c == RBNode::Black )
-		return h + 1;
-	return h;
-}
-
-template< class K, class V >
-bool RbTree<K,V>::valid() const
+bool RbTree< K, V >::valid() const
 {
 	assert( RBNode::null->c == RBNode::Black
 		&& RBNode::null->l == RBNode::null->r
@@ -236,11 +245,7 @@ bool RbTree<K,V>::valid() const
 	if( root_ == RBNode::null )
 		return true;
 
-	int leftHeight = leftBlackHeight<K,V>( root_ );
-	int rightHeight = rightBlackHeight<K,V>( root_ );
-	assert( leftHeight == rightHeight );
-
-	return leftHeight == rightHeight;
+    return blackHeight( root_ ) > 0;
 }
 #endif
 

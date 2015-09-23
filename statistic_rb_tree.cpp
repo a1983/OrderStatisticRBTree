@@ -1,4 +1,4 @@
-#include "statisticrbtree.h"
+#include "statistic_rb_tree.h"
 
 RBNode* RBNode::null = new RBNode();
 
@@ -142,7 +142,7 @@ void RbTreeData::rebalance(RBNode* n)
 	root_->c = RBNode::Black;
 }
 
-void RbTreeData::deleteNodeAndRebalance(RBNode* n)
+RBNode* RbTreeData::removeNodeAndRebalance(RBNode* n)
 {
 	// removing
 	RBNode* old = n;
@@ -270,7 +270,7 @@ void RbTreeData::deleteNodeAndRebalance(RBNode* n)
 			to->c = RBNode::Black;
 	}
 
-	delete old;
+    return old;
 }
 
 RBNode* RbTreeData::getByStatistic(int index)
