@@ -4,7 +4,8 @@
 
 #include <time.h>
 
-void test_const( const OrderStatisticTree< int, int >& t ) {
+template< class T >
+void test_const( const T& t ) {
     for( auto i = t.begin(); i != t.end(); ++i ) {
         std::cout << i.key() << std::endl;
     }
@@ -12,7 +13,7 @@ void test_const( const OrderStatisticTree< int, int >& t ) {
 
 int main() {
 
-    OrderStatisticTree< int, int > t;
+    OrderStatisticTree< int, int, std::greater< int > > t;
 
     test_const( t );
 
@@ -116,7 +117,8 @@ int main() {
 
     t.insertMulti( 1, 1 );
     t.insertMulti( 2, 1 );
-    assert( t.erase( t.find( 1 ) ).key() == 2 && t.size() == 1 );
+    assert( t.erase( t.find( 2 ) ).key() == 1 );
+    assert( t.size() == 1 );
 
     return 0;
 }

@@ -33,7 +33,7 @@ RBNode* getDistanceNode( RBNode* node, int distance );
 
 class RBTreeData {
 
-    template< class K, class V >
+    template< class K, class V, class C >
     friend class OrderStatisticTree;
 
     RBTreeData();
@@ -50,7 +50,7 @@ class RBTreeData {
     RBNode* root_;
 };
 
-template< class K, class V >
+template< class K, class V, class Comparer = std::less< K > >
 class OrderStatisticTree : RBTreeData {
 
     struct Node : RBNode {
@@ -61,8 +61,8 @@ class OrderStatisticTree : RBTreeData {
         V val;
     };
 
-    static int blackHeight( RBNode* n );
-    static Node* findNode( Node* find, const K& key );
+    int blackHeight( RBNode* n ) const;
+    Node* findNode( Node* find, const K& key );
 
     inline static Node* cast( RBNode* node ) { return static_cast< Node* >( node ); }
 
@@ -156,6 +156,11 @@ public:
         inline const_iterator &operator -= (int j) { return *this = *this - j; }
     };
 
+
+    explicit OrderStatisticTree( const Comparer& comparer = Comparer() )
+        : lessThan_( comparer )
+    { }
+
     iterator begin() { return iterator{ static_cast<Node*>( lowestNode( root_ ) ) }; }
     iterator end() { return iterator{ static_cast<Node*>( RBNode::null ) }; }
 
@@ -178,13 +183,16 @@ public:
     void clear();
 
     bool valid() const;
+
+private:
+    Comparer lessThan_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-template< class K, class V >
-typename OrderStatisticTree< K, V >::iterator
-OrderStatisticTree< K, V >::insertMulti( const K& key, const V& val )
+template< class K, class V, class C >
+typename OrderStatisticTree< K, V, C >::iterator
+OrderStatisticTree< K, V, C >::insertMulti( const K& key, const V& val )
 {
     Node* node = new Node{ key, val };
 
@@ -196,7 +204,7 @@ OrderStatisticTree< K, V >::insertMulti( const K& key, const V& val )
         RBNode* find = root_;
         while( true ) {
             p = find;
-            if( key < cast( find )->key ) {
+            if( lessThan_( key, cast( find )->key ) ) {
                 find = find->l;
                 if( find == RBNode::null ) {
                     p->l = node;
@@ -221,37 +229,38 @@ OrderStatisticTree< K, V >::insertMulti( const K& key, const V& val )
 }
 
 
-template< class K, class V >
-typename OrderStatisticTree< K, V >::Node*
-OrderStatisticTree< K, V >::findNode( typename OrderStatisticTree< K, V >::Node* n, const K& key )
+template< class K, class V, class C >
+typename OrderStatisticTree< K, V, C >::Node*
+OrderStatisticTree< K, V, C >::findNode( typename OrderStatisticTree< K, V, C >::Node* n,
+                                         const K& key )
 {
     while( n != RBNode::null ) {
-        if( key < n->key )       { n = cast( n->l ); }
-        else if( key > n->key )  { n = cast( n->r ); }
-        else                     return n;
+        if( lessThan_( key, n->key ) )       { n = cast( n->l ); }
+        else if( lessThan_( n->key, key ) )  { n = cast( n->r ); }
+        else                                 return n;
     }
 
     return n;
 }
 
-template< class K, class V >
-inline typename OrderStatisticTree< K, V >::iterator
-OrderStatisticTree< K, V >::find( const K& key )
+template< class K, class V, class C >
+inline typename OrderStatisticTree< K, V, C >::iterator
+OrderStatisticTree< K, V, C >::find( const K& key )
 {
     return iterator{ findNode( cast( root_ ), key ) };
 }
 
-template< class K, class V >
-inline typename OrderStatisticTree< K, V >::iterator
-OrderStatisticTree< K, V >::erase( typename OrderStatisticTree< K, V >::iterator i ) {
+template< class K, class V, class C >
+inline typename OrderStatisticTree< K, V, C >::iterator
+OrderStatisticTree< K, V, C >::erase( typename OrderStatisticTree< K, V, C >::iterator i ) {
     iterator next{ cast( nextNode( i.i ) ) };
     if( i.i != Node::null )
         delete cast( removeNodeAndRebalance( i.i ) );
     return next;
 }
 
-template< class K, class V >
-bool OrderStatisticTree< K, V >::removeOne( const K& key )
+template< class K, class V, class C >
+bool OrderStatisticTree< K, V, C >::removeOne( const K& key )
 {
     Node* find = findNode( static_cast<Node*>( root_ ), key );
     if( find == RBNode::null )
@@ -262,8 +271,8 @@ bool OrderStatisticTree< K, V >::removeOne( const K& key )
     return true;
 }
 
-template< class K, class V >
-int OrderStatisticTree< K, V >::removeMulti( const K& key )
+template< class K, class V, class C >
+int OrderStatisticTree< K, V, C >::removeMulti( const K& key )
 {
     int removed = 0;
     Node* find = findNode( root_, key );
@@ -276,9 +285,9 @@ int OrderStatisticTree< K, V >::removeMulti( const K& key )
     return removed;
 }
 
-template< class K, class V >
-inline typename OrderStatisticTree< K, V >::iterator
-OrderStatisticTree< K, V >::getNth( int order )
+template< class K, class V, class C >
+inline typename OrderStatisticTree< K, V, C >::iterator
+OrderStatisticTree< K, V, C >::getNth( int order )
 {
     return iterator{ cast( getNodeByOrder( root_, order ) ) };
 }
@@ -294,8 +303,8 @@ void deleteNodeRecursively( NodeType* node ) {
     delete node;
 }
 
-template< class K, class V >
-void OrderStatisticTree< K, V >::clear()
+template< class K, class V, class C >
+void OrderStatisticTree< K, V, C >::clear()
 {
     if( root_ != RBNode::null )
         deleteNodeRecursively( cast( root_ ) );
@@ -306,32 +315,31 @@ void OrderStatisticTree< K, V >::clear()
 #if CHECK_VALID == 0
 #include <assert.h>
 
-template< class K, class V >
-int OrderStatisticTree< K, V >::blackHeight( RBNode* n ) {
+template< class K, class V, class C >
+int OrderStatisticTree< K, V, C >::blackHeight( RBNode* n ) const {
     assert( n != RBNode::null );
 
-    typename OrderStatisticTree< K, V >::Node* l
-            = static_cast<typename OrderStatisticTree< K, V >::Node*>( n->l );
-    typename OrderStatisticTree< K, V >::Node* r
-            = static_cast<typename OrderStatisticTree< K, V >::Node*>( n->r );
+    Node* l = cast( n->l );
+    Node* r = cast( n->r );
+
     int leftHeight = 0;
     int rightHeight = 0;
     if( l != RBNode::null ) {
         leftHeight += blackHeight( l );
-        assert( l->key <= ( static_cast<typename OrderStatisticTree< K, V >::Node*>( n )->key ) );
+        assert( !lessThan_( cast( n )->key, l->key ) );
     }
 
     if( r != RBNode::null ) {
         rightHeight += blackHeight( r );
-        assert( r->key >= ( static_cast<typename OrderStatisticTree< K, V >::Node*>( n )->key ) );
+        assert( !lessThan_( r->key, cast( n )->key ) );
     }
 
     assert( leftHeight == rightHeight );
     return n->c == RBNode::Black ? leftHeight + 1 : leftHeight;
 }
 
-template< class K, class V >
-bool OrderStatisticTree< K, V >::valid() const
+template< class K, class V, class C >
+bool OrderStatisticTree< K, V, C >::valid() const
 {
     assert( RBNode::null->c == RBNode::Black
             && RBNode::null->l == RBNode::null->r
