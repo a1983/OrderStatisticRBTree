@@ -2,7 +2,7 @@
 
 RBNode* RBNode::null = new RBNode();
 
-RbTreeData::RbTreeData()
+RBTreeData::RBTreeData()
     : root_{ RBNode::null }
 {
 
@@ -46,7 +46,7 @@ RBNode* prevNode(RBNode* node)
 }
 
 
-RBNode* lowestNode(RBNode* node)
+RBNode* lowestNode( RBNode* node)
 {
     RBNode* find = node;
     while( find != RBNode::null ) {
@@ -56,7 +56,61 @@ RBNode* lowestNode(RBNode* node)
     return node;
 }
 
-void RbTreeData::rotateLeft(RBNode* n)
+RBNode* getNodeByOrder( RBNode* root, int order )
+{
+    RBNode* find = root;
+    int current = 0;
+    while( find != RBNode::null ) {
+        int check = current + find->l->s;
+        if( order < check ) {
+            find = find->l;
+        }
+        else if( order > check ) {
+            current = check + 1;
+            find = find->r;
+        }
+        else {
+            return find;
+        }
+
+    }
+    return find;
+}
+
+int getNodeOrder( RBNode* node )
+{
+    RBNode* find = node;
+    RBNode* p = node->p;
+    int order = 0;
+    while( p != RBNode::null ) {
+        if( find == p->r ) {
+            order = p->s + 1;
+        }
+        find = p;
+        p = p->p;
+    }
+    return order + node->l->s;
+}
+
+RBNode* getDistanceNode( RBNode* node, int distance )
+{
+    RBNode* find = node;
+    RBNode* p = node->p;
+    int order = 0;
+    while( p != RBNode::null ) {
+        if( find == p->r ) {
+            order = p->s + 1;
+        }
+        find = p;
+        p = p->p;
+    }
+
+    // now find is root node
+    order = order + node->l->s + distance;
+    return getNodeByOrder( find, order );
+}
+
+void RBTreeData::rotateLeft(RBNode* n)
 {
     RBNode* r = n->r;
     n->r = r->l;
@@ -78,7 +132,7 @@ void RbTreeData::rotateLeft(RBNode* n)
 }
 
 
-void RbTreeData::rotateRight(RBNode* n)
+void RBTreeData::rotateRight(RBNode* n)
 {
     RBNode* l = n->l;
     n->l = l->r;
@@ -99,7 +153,7 @@ void RbTreeData::rotateRight(RBNode* n)
     l->s = l->l->s + l->r->s + 1;
 }
 
-void RbTreeData::rebalance(RBNode* n)
+void RBTreeData::rebalance(RBNode* n)
 {
     // statistic counting
     for( RBNode* p = n->p; p != RBNode::null; ++p->s, p = p->p ){ };
@@ -142,7 +196,7 @@ void RbTreeData::rebalance(RBNode* n)
     root_->c = RBNode::Black;
 }
 
-RBNode* RbTreeData::removeNodeAndRebalance(RBNode* n)
+RBNode* RBTreeData::removeNodeAndRebalance(RBNode* n)
 {
     // removing
     RBNode* old = n;
@@ -273,63 +327,7 @@ RBNode* RbTreeData::removeNodeAndRebalance(RBNode* n)
     return old;
 }
 
-RBNode* RbTreeData::getByStatistic(int index)
-{
-    RBNode* find = root_;
-    int current = 0;
-    while( find != RBNode::null ) {
-        int check = current + find->l->s;
-        if( index < check ) {
-            find = find->l;
-        }
-        else if( index > check ) {
-            current = check + 1;
-            find = find->r;
-        }
-        else {
-            return find;
-        }
-
-    }
-    return find;
-}
-
-int RbTreeData::statistic_size() const
+int RBTreeData::statisticSize() const
 {
     return root_->s;
-}
-
-RBNode* getDistanceNode( RBNode* node, int distance )
-{
-    // find node pos
-    RBNode* find = node;
-    RBNode* p = node->p;
-    int index = 0;
-    while( p != RBNode::null ) {
-        if( find == p->r ) {
-            index = p->s + 1;
-        }
-        find = p;
-        p = p->p;
-    }
-
-    index = index + node->l->s + distance;
-
-    // find distance node
-    int current = 0;
-    while( find != RBNode::null ) {
-        int check = current + find->l->s;
-        if( index < check ) {
-            find = find->l;
-        }
-        else if( index > check ) {
-            current = check + 1;
-            find = find->r;
-        }
-        else {
-            return find;
-        }
-
-    }
-    return find;
 }

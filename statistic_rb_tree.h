@@ -25,31 +25,33 @@ RBNode* nextNode( RBNode* node );
 RBNode* prevNode( RBNode* node );
 RBNode* lowestNode( RBNode* node );
 
+RBNode* getNodeByOrder( RBNode* root, int order );
+int getNodeOrder( RBNode* node );
+
 RBNode* getDistanceNode( RBNode* node, int distance );
 
 
-class RbTreeData {
+class RBTreeData {
 
     template< class K, class V >
-    friend class RbTree;
+    friend class OrderStatisticTree;
 
-    RbTreeData();
+    RBTreeData();
 
     void rotateLeft(RBNode* n);
     void rotateRight(RBNode* n);
     void rebalance(RBNode* n);
     RBNode *removeNodeAndRebalance(RBNode* n);
 
-    RBNode* getByStatistic( int index );
     int getStatistic( RBNode* node );
 
-    int statistic_size() const;
+    int statisticSize() const;
 
     RBNode* root_;
 };
 
 template< class K, class V >
-class RbTree : RbTreeData {
+class OrderStatisticTree : RBTreeData {
 
     struct Node : RBNode {
         Node( const K& key, const V& val )
@@ -60,7 +62,9 @@ class RbTree : RbTreeData {
     };
 
     static int blackHeight( RBNode* n );
-    static RBNode* findNode( Node* find, const K& key );
+    static Node* findNode( Node* find, const K& key );
+
+    inline static Node* cast( RBNode* node ) { return static_cast< Node* >( node ); }
 
 public:
     typedef K KeyType;
@@ -68,6 +72,8 @@ public:
 
     class iterator
     {
+        friend class OrderStatisticTree;
+
         Node* i;
 
     public:
@@ -78,43 +84,107 @@ public:
         typedef V& reference;
 
         inline iterator() : i{ Node::null } { }
-        inline iterator( Node* node ) : i{ node } { }
+        inline explicit  iterator( Node* node ) : i{ node } { }
 
         inline const KeyType& key() const { return i->key; }
         inline KeyType& value() const { return i->val; }
+        inline int order() const { return getNodeOrder( i ); }
+
         inline KeyType& operator * () const { return i->val; }
         inline KeyType* operator -> () const { return &i->val; }
-        inline bool operator == (const iterator& o) const { return i == o.i; }
-        inline bool operator != (const iterator& o) const { return i != o.i; }
+        inline bool operator == (iterator o) const { return i == o.i; }
+        inline bool operator != (iterator o) const { return i != o.i; }
 
-        inline iterator &operator ++ () {	i = static_cast<Node*>( nextNode( i ) ); return *this; }
-        inline iterator operator ++ (int) { iterator r = *this; i = static_cast<Node*>( nextNode( i ) ); return r; }
-        inline iterator &operator -- () {	i = prevNode( i ); return *this; }
-        inline iterator operator -- (int) { iterator r = *this; i = prevNode( i ); return r; }
-        inline iterator operator + (int j) const { return static_cast<Node*>( getDistanceNode( i,  j ) ); }
-        inline iterator operator - (int j) const { return static_cast<Node*>( getDistanceNode( i, -j ) ); }
+        inline iterator &operator ++ ()
+            { i = static_cast<Node*>( nextNode( i ) ); return *this; }
+        inline iterator operator ++ (int)
+            { iterator r = *this; i = static_cast<Node*>( nextNode( i ) ); return r; }
+
+        inline iterator &operator -- ()
+            { i = static_cast<Node*>( prevNode( i ) ); return *this; }
+        inline iterator operator -- (int)
+            { iterator r = *this; i = static_cast<Node*>( prevNode( i ) ); return r; }
+
+        inline iterator operator + (int j) const
+            { return iterator { static_cast<Node*>( getDistanceNode( i,  j ) ) }; }
+        inline iterator operator - (int j) const
+            { return iterator { static_cast<Node*>( getDistanceNode( i, -j ) ) }; }
+
         inline iterator &operator += (int j) { return *this = *this + j; }
         inline iterator &operator -= (int j) { return *this = *this - j; }
+    };
+
+    class const_iterator
+    {
+        const Node* i;
+
+    public:
+        typedef std::bidirectional_iterator_tag iterator_category;
+        typedef std::size_t difference_type;
+        typedef V  value_type;
+        typedef V* pointer;
+        typedef V& reference;
+
+        inline const_iterator() : i{ Node::null } { }
+        inline explicit  const_iterator( const Node* node ) : i{ node } { }
+
+        inline const KeyType& key() const { return i->key; }
+        inline const KeyType& value() const { return i->val; }
+        inline int order() const { return getNodeOrder( i ); }
+
+        inline KeyType& operator * () const { return i->val; }
+        inline KeyType* operator -> () const { return &i->val; }
+        inline bool operator == (const_iterator o) const { return i == o.i; }
+        inline bool operator != (const_iterator o) const { return i != o.i; }
+
+        inline const_iterator &operator ++ ()
+            { i = static_cast<Node*>( nextNode( const_cast<Node*>( i ) ) ); return *this; }
+        inline const_iterator operator ++ (int)
+            { iterator r = *this; i = static_cast<Node*>( nextNode( i ) ); return r; }
+
+        inline const_iterator &operator -- ()
+            { i = static_cast<const Node*>( prevNode( i ) ); return *this; }
+        inline const_iterator operator -- (int)
+            { iterator r = *this; i = static_cast<Node*>( prevNode( i ) ); return r; }
+
+        inline const_iterator operator + (int j) const
+            { return iterator { static_cast<Node*>( getDistanceNode( i,  j ) ) }; }
+        inline const_iterator operator - (int j) const
+            { return iterator { static_cast<Node*>( getDistanceNode( i, -j ) ) }; }
+
+        inline const_iterator &operator += (int j) { return *this = *this + j; }
+        inline const_iterator &operator -= (int j) { return *this = *this - j; }
     };
 
     iterator begin() { return iterator{ static_cast<Node*>( lowestNode( root_ ) ) }; }
     iterator end() { return iterator{ static_cast<Node*>( RBNode::null ) }; }
 
-    iterator insert( K key, V val );
-    iterator find( K key );
-    bool remove( K key );
+    const_iterator begin() const
+        { return const_iterator{ static_cast<Node*>( lowestNode( root_ ) ) }; }
+    const_iterator end() const
+        { return const_iterator{ static_cast<Node*>( RBNode::null ) }; }
 
-    iterator getNth( int index );
+    iterator insertMulti( const K& key, const V& val );
+    iterator find( const K& key );
+    iterator erase( iterator i );
 
-    inline int size() const { return statistic_size(); }
+    bool removeOne( const K& key );
+    int removeMulti( const K& key );
+
+    iterator getNth( int order );
+
+    inline int size() const { return statisticSize(); }
 
     void clear();
 
     bool valid() const;
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template< class K, class V >
-typename RbTree< K, V >::iterator RbTree< K, V >::insert(K key, V val)
+typename OrderStatisticTree< K, V >::iterator
+OrderStatisticTree< K, V >::insertMulti( const K& key, const V& val )
 {
     Node* node = new Node{ key, val };
 
@@ -126,7 +196,7 @@ typename RbTree< K, V >::iterator RbTree< K, V >::insert(K key, V val)
         RBNode* find = root_;
         while( true ) {
             p = find;
-            if( key < static_cast<Node*>(find)->key ) {
+            if( key < cast( find )->key ) {
                 find = find->l;
                 if( find == RBNode::null ) {
                     p->l = node;
@@ -150,45 +220,67 @@ typename RbTree< K, V >::iterator RbTree< K, V >::insert(K key, V val)
     return iterator( node );
 }
 
+
 template< class K, class V >
-RBNode* RbTree< K, V >::findNode( typename RbTree< K, V >::Node* find, const K& key )
+typename OrderStatisticTree< K, V >::Node*
+OrderStatisticTree< K, V >::findNode( typename OrderStatisticTree< K, V >::Node* n, const K& key )
 {
-    while( find != RBNode::null ) {
-        if( key < find->key ) {
-            find = static_cast<typename RbTree< K, V >::Node*>( find->l );
-        }
-        else if( key > find->key ) {
-            find = static_cast<typename RbTree< K, V >::Node*>( find->r );
-        }
-        else
-            return find;
+    while( n != RBNode::null ) {
+        if( key < n->key )       { n = cast( n->l ); }
+        else if( key > n->key )  { n = cast( n->r ); }
+        else                     return n;
     }
 
-    return find;
+    return n;
 }
 
 template< class K, class V >
-inline typename RbTree< K, V >::iterator RbTree< K, V >::find( K key )
+inline typename OrderStatisticTree< K, V >::iterator
+OrderStatisticTree< K, V >::find( const K& key )
 {
-    return iterator{ findNode( static_cast<Node*>( root_ ), key ) };
+    return iterator{ findNode( cast( root_ ), key ) };
 }
 
 template< class K, class V >
-bool RbTree< K, V >::remove(K key)
+inline typename OrderStatisticTree< K, V >::iterator
+OrderStatisticTree< K, V >::erase( typename OrderStatisticTree< K, V >::iterator i ) {
+    iterator next{ cast( nextNode( i.i ) ) };
+    if( i.i != Node::null )
+        delete cast( removeNodeAndRebalance( i.i ) );
+    return next;
+}
+
+template< class K, class V >
+bool OrderStatisticTree< K, V >::removeOne( const K& key )
 {
-    Node* find = static_cast<Node*>( findNode( static_cast<Node*>( root_ ), key ) );
+    Node* find = findNode( static_cast<Node*>( root_ ), key );
     if( find == RBNode::null )
         return false;
 
-    delete static_cast<Node*>( removeNodeAndRebalance( find ) );
+    delete cast( removeNodeAndRebalance( find ) );
 
     return true;
 }
 
 template< class K, class V >
-inline typename RbTree< K, V >::iterator RbTree< K, V >::getNth( int index )
+int OrderStatisticTree< K, V >::removeMulti( const K& key )
 {
-    return iterator{ static_cast< RbTree< K, V >::Node* >( getByStatistic( index ) ) };
+    int removed = 0;
+    Node* find = findNode( root_, key );
+    while( find != RBNode::null ) {
+        Node* next = nextNode( findNode( find, key ) );
+        delete cast( removeNodeAndRebalance( find ) );
+        find == next;
+    }
+
+    return removed;
+}
+
+template< class K, class V >
+inline typename OrderStatisticTree< K, V >::iterator
+OrderStatisticTree< K, V >::getNth( int order )
+{
+    return iterator{ cast( getNodeByOrder( root_, order ) ) };
 }
 
 template< class NodeType >
@@ -203,34 +295,35 @@ void deleteNodeRecursively( NodeType* node ) {
 }
 
 template< class K, class V >
-void RbTree< K, V >::clear()
+void OrderStatisticTree< K, V >::clear()
 {
     if( root_ != RBNode::null )
-        deleteNodeRecursively( static_cast< Node* >( root_ ) );
+        deleteNodeRecursively( cast( root_ ) );
 
     root_ = Node::null;
 }
 
 #if CHECK_VALID == 0
 #include <assert.h>
-#include <stack>
 
 template< class K, class V >
-int RbTree< K, V >::blackHeight( RBNode* n ) {
+int OrderStatisticTree< K, V >::blackHeight( RBNode* n ) {
     assert( n != RBNode::null );
 
-    typename RbTree< K, V >::Node* l = static_cast<typename RbTree< K, V >::Node*>( n->l );
-    typename RbTree< K, V >::Node* r = static_cast<typename RbTree< K, V >::Node*>( n->r );
+    typename OrderStatisticTree< K, V >::Node* l
+            = static_cast<typename OrderStatisticTree< K, V >::Node*>( n->l );
+    typename OrderStatisticTree< K, V >::Node* r
+            = static_cast<typename OrderStatisticTree< K, V >::Node*>( n->r );
     int leftHeight = 0;
     int rightHeight = 0;
     if( l != RBNode::null ) {
         leftHeight += blackHeight( l );
-        assert( l->key <= ( static_cast<typename RbTree< K, V >::Node*>( n )->key ) );
+        assert( l->key <= ( static_cast<typename OrderStatisticTree< K, V >::Node*>( n )->key ) );
     }
 
     if( r != RBNode::null ) {
         rightHeight += blackHeight( r );
-        assert( r->key >= ( static_cast<typename RbTree< K, V >::Node*>( n )->key ) );
+        assert( r->key >= ( static_cast<typename OrderStatisticTree< K, V >::Node*>( n )->key ) );
     }
 
     assert( leftHeight == rightHeight );
@@ -238,7 +331,7 @@ int RbTree< K, V >::blackHeight( RBNode* n ) {
 }
 
 template< class K, class V >
-bool RbTree< K, V >::valid() const
+bool OrderStatisticTree< K, V >::valid() const
 {
     assert( RBNode::null->c == RBNode::Black
             && RBNode::null->l == RBNode::null->r

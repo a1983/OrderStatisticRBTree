@@ -4,9 +4,17 @@
 
 #include <time.h>
 
+void test_const( const OrderStatisticTree< int, int >& t ) {
+    for( auto i = t.begin(); i != t.end(); ++i ) {
+        std::cout << i.key() << std::endl;
+    }
+}
+
 int main() {
 
-    RbTree< int, int > t;
+    OrderStatisticTree< int, int > t;
+
+    test_const( t );
 
     clock_t count = clock();
 
@@ -14,7 +22,7 @@ int main() {
 
     int size = 1e6;
     for( int i = 0; i < size; ++i )
-        t.insert( 1, i );
+        t.insertMulti( 1, i );
 
     std::cout << size << " nodes inserted in " << clock() - count << " clocks" << std::endl;
 
@@ -24,7 +32,7 @@ int main() {
     count = clock();
 
     for( int i = 0; i < size / 2; ++i )
-        t.remove( 1 );
+        t.removeOne( 1 );
 
     std::cout << size / 2 << " nodes removed in " << clock() - count << " clocks" << std::endl;
 
@@ -43,7 +51,7 @@ int main() {
     count = clock();
 
     for( int i = 0; i < size; ++i )
-        t.insert( rand() % size, i );
+        t.insertMulti( rand() % size, i );
 
     std::cout << size << " randomly nodes inserted in "
               << clock() - count << " clocks" << std::endl;
@@ -54,7 +62,7 @@ int main() {
     count = clock();
 
     for( int i = 0; i < size; ++i )
-        t.remove( rand() % size );
+        t.removeOne( rand() % size );
 
     std::cout << size - t.size() << " nodes randomly removed in "
               << clock() - count << " clocks" << std::endl;
@@ -73,7 +81,7 @@ int main() {
     count = clock();
 
     for( int i = 0; i < size; ++i )
-        t.insert( rand() % size, i );
+        t.insertMulti( rand() % size, i );
 
     auto it = t.begin();
     for( int i = 0; i < size; ++i ) {
@@ -101,6 +109,14 @@ int main() {
     }
 
     std::cout << repeat_count << " nodes founds in " << clock() - count << " clocks" << std::endl;
+
+    std::cout << "all tests passed" << std::endl << std::endl;
+
+    t.clear();
+
+    t.insertMulti( 1, 1 );
+    t.insertMulti( 2, 1 );
+    assert( t.erase( t.find( 1 ) ).key() == 2 && t.size() == 1 );
 
     return 0;
 }
