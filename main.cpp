@@ -89,6 +89,11 @@ int main() {
         assert( t.getNth( i ) == it++ );
     }
 
+    it = t.begin();
+    for( int i = 0; i < size; ++i, ++it ) {
+        assert( it.order() == i );
+    }
+
     std::cout << size << " nodes order validated in " << clock() - count << " clocks" << std::endl;
 
     count = clock();

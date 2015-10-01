@@ -84,7 +84,7 @@ int getNodeOrder( RBNode* node )
     int order = 0;
     while( p != RBNode::null ) {
         if( find == p->r ) {
-            order = p->s + 1;
+            order += p->l->s + 1;
         }
         find = p;
         p = p->p;
